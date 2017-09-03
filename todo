@@ -1,0 +1,11 @@
+- implement basic d-j exchange
+- write a spec to make sure it all works
+-
+
+
+ideas
+-? port to Scala.js?
+    - convert scapi to scala, drop bcprov dependency?
+    -? gonna be hard to do
+- simple cli ui to try it
+- networking?
