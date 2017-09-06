@@ -2,7 +2,7 @@ package actors
 
 import java.math.BigInteger
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill}
 import edu.biu.scapi.interactiveMidProtocols.sigmaProtocol.damgardJurikProduct.{SigmaDJProductCommonInput, SigmaDJProductVerifierComputation}
 import edu.biu.scapi.interactiveMidProtocols.sigmaProtocol.utility.SigmaProtocolMsg
 import edu.biu.scapi.midLayer.asymmetricCrypto.encryption.{DamgardJurikEnc, ScDamgardJurikEnc}
@@ -19,6 +19,8 @@ class Client(number: BigInteger, broker: ActorRef)
   var cC: Option[BigIntegerCiphertext] = None
   var djPublicKey: Option[DamgardJurikPublicKey] = None
   var protocolMsg1: Option[SigmaProtocolMsg] = None
+  var proverResult: Option[ProverResult] = None
+  var waitingForProverResult: Option[ActorRef] = None
 
   val djVerifierComputation: SigmaDJProductVerifierComputation =
     new SigmaDJProductVerifierComputation()
@@ -33,6 +35,7 @@ class Client(number: BigInteger, broker: ActorRef)
 
   def encryptNumber(n: BigInteger,
                     pk: DamgardJurikPublicKey): BigIntegerCiphertext = {
+    log.info(s"encrypt $n")
     val enc: DamgardJurikEnc = new ScDamgardJurikEnc()
     enc.setKey(pk)
     enc
@@ -67,7 +70,17 @@ class Client(number: BigInteger, broker: ActorRef)
     case Message2(msg2) if protocolMsg1.isDefined && djCommonInput.isDefined =>
       val result: Boolean =
         djVerifierComputation.verify(djCommonInput.get, protocolMsg1.get, msg2)
-      log.info(ProverResult(result).toString)
-      context.stop(self)
+      val proverResult1 = ProverResult(result)
+      log.info(proverResult1.toString)
+      proverResult = Some(proverResult1)
+      waitingForProverResult.foreach{ a =>
+        a ! proverResult1
+        self ! PoisonPill
+      }
+
+    case ShowProverResult => proverResult match {
+      case Some(value) => sender() ! value
+      case None => waitingForProverResult = Some(sender())
+    }
   }
 }

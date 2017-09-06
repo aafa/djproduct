@@ -2,23 +2,36 @@ package actors
 
 import java.math.BigInteger
 
-import actors.Main.system
-import akka.actor.{ActorRef, ActorSystem, Props}
-import org.scalacheck.Properties
+import akka.actor.{ActorRef, _}
+import akka.pattern._
+import akka.util.Timeout
 import org.scalacheck.Prop._
+import org.scalacheck.Properties
 
-object PropertyCheck extends Properties("product"){
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.{Await, Future}
+import scala.util.Random
+
+object PropertyCheck extends Properties("product")  {
   val system = ActorSystem("dj-property-test")
+  val waitTime: FiniteDuration = 100.millis
+  implicit val timeout: Timeout = waitTime
 
-  property("product is correct") = forAll { (a: BigInt, b: BigInt) =>
-    val carroll = system.actorOf(Props(classOf[Broker]), "carroll")
+  property("is calculated") = forAll { (a: Int, b: Int) =>
+    val take = Random.nextLong()
+    val carroll = system.actorOf(Props(classOf[Broker]), s"carroll$a*$b-$take")
     val alice: ActorRef =
-      system.actorOf(Props(classOf[Client], a.bigInteger, carroll), "alice")
+      system.actorOf(Props(classOf[Client], BigInteger.valueOf(Math.abs(a)), carroll), s"alice$a-$take")
     val bob: ActorRef =
-      system.actorOf(Props(classOf[Client], b.bigInteger, carroll), "bob")
+      system.actorOf(Props(classOf[Client], BigInteger.valueOf(Math.abs(b)), carroll), s"bob$b-$take")
 
+    val eventualTuple: Future[(ProverResult, ProverResult)] = for {
+      p1 <- (alice ? ShowProverResult).mapTo[ProverResult]
+      p2 <- (bob ? ShowProverResult).mapTo[ProverResult]
+    } yield (p1, p2)
 
-    (a * b) == (a * b)
+    Await.result(eventualTuple, waitTime) == (ProverResult(true), ProverResult(true))
   }
 
 }

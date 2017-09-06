@@ -91,6 +91,6 @@ class Broker extends Actor with ActorLogging {
 
     case RequestProve if proverInput.isDefined =>
       log.info(s"Proceeding with Prove")
-      context.actorOf(Props(classOf[Prover], sender(), proverInput.get)) ! ProvideProve
+      context.actorOf(Props(classOf[Prover], sender(), proverInput.get, self)) ! ProvideProve
   }
 }

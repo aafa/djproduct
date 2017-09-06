@@ -20,5 +20,6 @@ case class ProverResult(success: Boolean) extends Message
 case class Challenge(challenge: Array[Byte]) extends Message
 case class Message1(msg: SigmaProtocolMsg) extends Message
 case class Message2(msg: SigmaProtocolMsg) extends Message
+case object ShowProverResult extends Message
 
 

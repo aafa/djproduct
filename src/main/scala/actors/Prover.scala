@@ -1,13 +1,10 @@
 package actors
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
-import edu.biu.scapi.interactiveMidProtocols.sigmaProtocol.damgardJurikProduct.{
-  SigmaDJProductProverComputation,
-  SigmaDJProductProverInput
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill}
+import edu.biu.scapi.interactiveMidProtocols.sigmaProtocol.damgardJurikProduct.{SigmaDJProductProverComputation, SigmaDJProductProverInput}
 import edu.biu.scapi.interactiveMidProtocols.sigmaProtocol.utility.SigmaProtocolMsg
 
-class Prover(verifier: ActorRef, proverInput: SigmaDJProductProverInput)
+class Prover(verifier: ActorRef, proverInput: SigmaDJProductProverInput, broker: ActorRef)
     extends Actor
     with ActorLogging {
 
@@ -25,6 +22,7 @@ class Prover(verifier: ActorRef, proverInput: SigmaDJProductProverInput)
       val msg2 = proverComputation.computeSecondMsg(challenge)
       log.info(s"Resolving challenge $msg2")
       verifier ! Message2(msg2)
-      context.stop(self)
+      broker ! PoisonPill
+      self ! PoisonPill
   }
 }
